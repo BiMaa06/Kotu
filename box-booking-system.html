@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>කොටු වෙන්කිරීමේ පද්ධතිය - Box Booking System</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState } = React;
+
+        function BoxBookingSystem() {
+          const [boxes, setBoxes] = useState(() => {
+            const initialBoxes = {};
+            for (let i = 0; i < 100; i++) {
+              initialBoxes[i] = { booked: false, name: '', phone: '', bookedAt: null };
+            }
+            return initialBoxes;
+          });
+          
+          const [selectedBox, setSelectedBox] = useState(null);
+          const [showForm, setShowForm] = useState(false);
+          const [formData, setFormData] = useState({ 
+            name: '', 
+            phone: '',
+            cardNumber: '',
+            cardName: '',
+            expiry: '',
+            cvv: ''
+          });
+          const [currentStep, setCurrentStep] = useState(1);
+          const [isAdminMode, setIsAdminMode] = useState(false);
+          const [adminPassword, setAdminPassword] = useState('');
+          const [showAdminLogin, setShowAdminLogin] = useState(false);
+
+          const ADMIN_PASSWORD = 'admin123';
+
+          const handleBoxClick = (boxNum) => {
+            if (!isAdminMode && !boxes[boxNum].booked) {
+              setSelectedBox(boxNum);
+              setShowForm(true);
+              setCurrentStep(1);
+              setFormData({ 
+                name: '', 
+                phone: '',
+                cardNumber: '',
+                cardName: '',
+                expiry: '',
+                cvv: ''
+              });
+            }
+          };
+
+          const handleNextStep = () => {
+            if (formData.name && formData.phone) {
+              setCurrentStep(2);
+            }
+          };
+
+          const formatCardNumber = (value) => {
+            const cleaned = value.replace(/\s/g, '');
+            const formatted = cleaned.match(/.{1,4}/g);
+            return formatted ? formatted.join(' ') : cleaned;
+          };
+
+          const handleCardNumberChange = (e) => {
+            const value = e.target.value.replace(/\s/g, '');
+            if (value.length <= 16 && /^\d*$/.test(value)) {
+              setFormData({ ...formData, cardNumber: value });
+            }
+          };
+
+          const handleExpiryChange = (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length >= 2) {
+              value = value.slice(0, 2) + '/' + value.slice(2, 4);
+            }
+            if (value.length <= 5) {
+              setFormData({ ...formData, expiry: value });
+            }
+          };
+
+          const handleCvvChange = (e) => {
+            const value = e.target.value;
+            if (value.length <= 3 && /^\d*$/.test(value)) {
+              setFormData({ ...formData, cvv: value });
+            }
+          };
+
+          const handlePayment = () => {
+            if (formData.cardNumber.length === 16 && 
+                formData.cardName && 
+                formData.expiry.length === 5 && 
+                formData.cvv.length === 3) {
+              setBoxes(prev => ({
+                ...prev,
+                [selectedBox]: { 
+                  booked: true, 
+                  name: formData.name, 
+                  phone: formData.phone,
+                  bookedAt: new Date().toLocaleString('si-LK')
+                }
+              }));
+              setShowForm(false);
+              setSelectedBox(null);
+              setCurrentStep(1);
+            }
+          };
+
+          const handleAdminLogin = () => {
+            if (adminPassword === ADMIN_PASSWORD) {
+              setIsAdminMode(true);
+              setShowAdminLogin(false);
+              setAdminPassword('');
+            } else {
+              alert('වැරදි මුරපදයක්! සත්‍ය මුරපදය: admin123');
+              setAdminPassword('');
+            }
+          };
+
+          const handleAdminLogout = () => {
+            setIsAdminMode(false);
+          };
+
+          const handleResetAllBookings = () => {
+            const confirmed = window.confirm('⚠️ ඔබට විශ්වාසද?\n\nමෙය සියලුම වෙන්කළ කොටු මකා දමයි!\nමෙම ක්‍රියාව ආපසු හැරවිය නොහැක.');
+            if (confirmed) {
+              const resetBoxes = {};
+              for (let i = 0; i < 100; i++) {
+                resetBoxes[i] = { booked: false, name: '', phone: '', bookedAt: null };
+              }
+              setBoxes(resetBoxes);
+              alert('✅ සියලුම bookings සාර්ථකව මකා දමන ලදී!');
+            }
+          };
+
+          const bookedCount = Object.values(boxes).filter(box => box.booked).length;
+          const totalRevenue = bookedCount * 100;
+
+          // User View
+          if (!isAdminMode) {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4 md:p-8">
+                <div className="max-w-7xl mx-auto">
+                  {/* Navigation Bar */}
+                  <nav className="flex justify-between items-center mb-8 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 shadow-2xl">
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl">🎯</div>
+                      <div>
+                        <h2 className="text-xl font-bold text-white">කොටු වෙන්කිරීම</h2>
+                        <p className="text-xs text-purple-200">Box Booking System</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowAdminLogin(true)}
+                      className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white p-3 rounded-full transition-all transform hover:scale-110 shadow-lg border-2 border-white/30 hover:border-white/50"
+                      title="Admin Login"
+                    >
+                      <div className="w-8 h-8 flex items-center justify-center text-2xl">
+                        👤
+                      </div>
+                    </button>
+                  </nav>
+
+                  <div className="text-center mb-8 animate-fade-in">
+                    <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+                      🎯 කොටු වෙන්කිරීමේ පද්ධතිය
+                    </h1>
+                    <p className="text-xl text-purple-200 mb-2">Box Booking System</p>
+                    <p className="text-2xl text-yellow-300 font-semibold">
+                      එක් කොටුවක් = රු. 100
+                    </p>
+                  </div>
+
+                  <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-8 border border-white/20 shadow-2xl">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-purple-200 text-sm">මුළු කොටු</p>
+                        <p className="text-3xl font-bold text-white">100</p>
+                      </div>
+                      <div>
+                        <p className="text-green-200 text-sm">වෙන්කළ කොටු</p>
+                        <p className="text-3xl font-bold text-green-400">{bookedCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-blue-200 text-sm">ඉතිරි කොටු</p>
+                        <p className="text-3xl font-bold text-blue-400">{100 - bookedCount}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-5 md:grid-cols-10 gap-2 md:gap-3 mb-8">
+                    {Array.from({ length: 100 }, (_, i) => i).map(num => (
+                      <div
+                        key={num}
+                        onClick={() => handleBoxClick(num)}
+                        className={`
+                          aspect-square rounded-xl flex flex-col items-center justify-center
+                          transition-all duration-300 transform
+                          ${boxes[num].booked 
+                            ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-green-500/50 cursor-not-allowed' 
+                            : 'bg-gradient-to-br from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 shadow-purple-500/50 cursor-pointer hover:scale-110 hover:rotate-3'
+                          }
+                          shadow-xl border-2 ${boxes[num].booked ? 'border-green-300' : 'border-purple-300'}
+                        `}
+                      >
+                        <div className="text-white font-bold text-lg md:text-2xl drop-shadow-md">
+                          {String(num).padStart(2, '0')}
+                        </div>
+                        {boxes[num].booked && (
+                          <div className="text-white mt-1 text-2xl">✓</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {showAdminLogin && (
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                      <div className="bg-gradient-to-br from-red-600 to-pink-600 rounded-3xl p-8 max-w-md w-full shadow-2xl border-2 border-white/30 transform animate-scale-in">
+                        <h2 className="text-3xl font-bold text-white mb-6 text-center">
+                          🔐 Admin Login
+                        </h2>
+                        <div className="space-y-6">
+                          <div>
+                            <label className="block text-white font-semibold mb-2">
+                              🔒 Admin Password
+                            </label>
+                            <input
+                              type="password"
+                              value={adminPassword}
+                              onChange={(e) => setAdminPassword(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
+                              className="w-full px-4 py-3 rounded-xl bg-white/90 border-2 border-red-300 focus:border-yellow-400 focus:outline-none text-gray-800 font-medium transition-all"
+                              placeholder="මුරපදය ඇතුළත් කරන්න"
+                            />
+                          </div>
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => {
+                                setShowAdminLogin(false);
+                                setAdminPassword('');
+                              }}
+                              className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
+                            >
+                              අවලංගු කරන්න
+                            </button>
+                            <button
+                              onClick={handleAdminLogin}
+                              className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
+                            >
+                              Login
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {showForm && (
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+                      <div className="bg-gradient-to-br from-purple-600 to-blue-600 rounded-3xl p-8 max-w-md w-full shadow-2xl border-2 border-white/30 transform animate-scale-in max-h-[90vh] overflow-y-auto">
+                        <h2 className="text-3xl font-bold text-white mb-2 text-center">
+                          කොටුව {String(selectedBox).padStart(2, '0')} වෙන්කරන්න
+                        </h2>
+                        <p className="text-center text-purple-200 mb-6">Step {currentStep} of 2</p>
+                        
+                        {currentStep === 1 ? (
+                          <div className="space-y-6">
+                            <div>
+                              <label className="block text-white font-semibold mb-2">
+                                👤 ඔබේ නම
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className="w-full px-4 py-3 rounded-xl bg-white/90 border-2 border-purple-300 focus:border-yellow-400 focus:outline-none text-gray-800 font-medium transition-all"
+                                placeholder="ඔබේ නම ඇතුළත් කරන්න"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-white font-semibold mb-2">
+                                📱 දුරකථන අංකය
+                              </label>
+                              <input
+                                type="tel"
+                                value={formData.phone}
+                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                className="w-full px-4 py-3 rounded-xl bg-white/90 border-2 border-purple-300 focus:border-yellow-400 focus:outline-none text-gray-800 font-medium transition-all"
+                                placeholder="07XXXXXXXX"
+                              />
+                            </div>
+                            <div className="bg-yellow-400/20 border-2 border-yellow-400 rounded-xl p-4">
+                              <p className="text-yellow-100 text-center font-semibold">මුදල: රු. 100</p>
+                            </div>
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => {
+                                  setShowForm(false);
+                                  setSelectedBox(null);
+                                }}
+                                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
+                              >
+                                අවලංගු කරන්න
+                              </button>
+                              <button
+                                onClick={handleNextStep}
+                                disabled={!formData.name || !formData.phone}
+                                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                ඊළඟ →
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-5">
+                            <div className="bg-white/10 rounded-xl p-4 border border-white/20">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-purple-200">කොටුව:</span>
+                                <span className="text-white font-bold text-xl">{String(selectedBox).padStart(2, '0')}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-purple-200">මුදල:</span>
+                                <span className="text-yellow-300 font-bold text-2xl">රු. 100</span>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-white font-semibold mb-2">
+                                💳 Card Number
+                              </label>
+                              <input
+                                type="text"
+                                value={formatCardNumber(formData.cardNumber)}
+                                onChange={handleCardNumberChange}
+                                className="w-full px-4 py-3 rounded-xl bg-white/90 border-2 border-purple-300 focus:border-yellow-400 focus:outline-none text-gray-800 font-medium transition-all text-lg tracking-wider"
+                                placeholder="1234 5678 9012 3456"
+                                maxLength="19"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-white font-semibold mb-2">
+                                👤 Cardholder Name
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.cardName}
+                                onChange={(e) => setFormData({ ...formData, cardName: e.target.value.toUpperCase() })}
+                                className="w-full px-4 py-3 rounded-xl bg-white/90 border-2 border-purple-300 focus:border-yellow-400 focus:outline-none text-gray-800 font-medium transition-all uppercase"
+                                placeholder="JOHN DOE"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-white font-semibold mb-2">
+                                  📅 Expiry
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.expiry}
+                                  onChange={handleExpiryChange}
+                                  className="w-full px-4 py-3 rounded-xl bg-white/90 border-2 border-purple-300 focus:border-yellow-400 focus:outline-none text-gray-800 font-medium transition-all"
+                                  placeholder="MM/YY"
+                                  maxLength="5"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-white font-semibold mb-2">
+                                  🔒 CVV
+                                </label>
+                                <input
+                                  type="password"
+                                  value={formData.cvv}
+                                  onChange={handleCvvChange}
+                                  className="w-full px-4 py-3 rounded-xl bg-white/90 border-2 border-purple-300 focus:border-yellow-400 focus:outline-none text-gray-800 font-medium transition-all text-center text-xl"
+                                  placeholder="123"
+                                  maxLength="3"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="bg-green-400/20 border-2 border-green-400 rounded-xl p-3">
+                              <p className="text-green-100 text-sm text-center">🛡️ ආරක්ෂිත ගෙවීම් ක්‍රමයක්</p>
+                            </div>
+
+                            <div className="flex gap-3">
+                              <button
+                                onClick={() => setCurrentStep(1)}
+                                className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
+                              >
+                                ← ආපසු
+                              </button>
+                              <button
+                                onClick={handlePayment}
+                                disabled={
+                                  formData.cardNumber.length !== 16 || 
+                                  !formData.cardName || 
+                                  formData.expiry.length !== 5 || 
+                                  formData.cvv.length !== 3
+                                }
+                                className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                💳 ගෙවන්න
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <style>{`
+                  @keyframes fade-in {
+                    from { opacity: 0; transform: translateY(-20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                  }
+                  @keyframes scale-in {
+                    from { opacity: 0; transform: scale(0.9); }
+                    to { opacity: 1; transform: scale(1); }
+                  }
+                  .animate-fade-in {
+                    animation: fade-in 0.6s ease-out;
+                  }
+                  .animate-scale-in {
+                    animation: scale-in 0.3s ease-out;
+                  }
+                `}</style>
+              </div>
+            );
+          }
+
+          // Admin View
+          const bookedBoxes = Object.entries(boxes)
+            .filter(([_, data]) => data.booked)
+            .sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black p-4 md:p-8">
+              <div className="max-w-7xl mx-auto">
+                <div className="flex justify-between items-center mb-8 animate-fade-in">
+                  <div>
+                    <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 drop-shadow-lg">
+                      👨‍💼 Admin Dashboard
+                    </h1>
+                    <p className="text-xl text-gray-400">කොටු වෙන්කිරීමේ පද්ධති කළමනාකරණය</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleResetAllBookings}
+                      className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg flex items-center gap-2"
+                    >
+                      🗑️ Reset All
+                    </button>
+                    <button
+                      onClick={handleAdminLogout}
+                      className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold transition-all transform hover:scale-105 shadow-lg"
+                    >
+                      🚪 Logout
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                  <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 shadow-2xl border border-blue-400/30">
+                    <p className="text-blue-200 text-sm font-medium mb-2">📊 මුළු කොටු</p>
+                    <p className="text-4xl font-bold text-white">100</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-green-600 to-green-800 rounded-2xl p-6 shadow-2xl border border-green-400/30">
+                    <p className="text-green-200 text-sm font-medium mb-2">✅ වෙන්කළ කොටු</p>
+                    <p className="text-4xl font-bold text-white">{bookedCount}</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl p-6 shadow-2xl border border-purple-400/30">
+                    <p className="text-purple-200 text-sm font-medium mb-2">🔓 ඉතිරි කොටු</p>
+                    <p className="text-4xl font-bold text-white">{100 - bookedCount}</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-yellow-600 to-orange-600 rounded-2xl p-6 shadow-2xl border border-yellow-400/30">
+                    <p className="text-yellow-200 text-sm font-medium mb-2">💰 මුළු ආදායම</p>
+                    <p className="text-4xl font-bold text-white">රු. {totalRevenue}</p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 border border-gray-700 shadow-2xl">
+                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                    📊 වෙන්කළ කොටු විස්තර
+                    <span className="text-sm bg-green-600 px-3 py-1 rounded-full">{bookedCount} කොටු</span>
+                  </h2>
+                  
+                  {bookedBoxes.length > 0 ? (
+                    <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                      {bookedBoxes.map(([num, data]) => (
+                        <div 
+                          key={num} 
+                          className="bg-gradient-to-r from-gray-700/50 to-gray-800/50 rounded-xl p-5 backdrop-blur-sm border border-gray-600 hover:border-green-500 transition-all transform hover:scale-[1.02] shadow-lg"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="bg-gradient-to-br from-green-500 to-emerald-600 text-white font-bold text-2xl rounded-xl w-20 h-20 flex flex-col items-center justify-center shadow-lg">
+                              <span className="text-xs text-green-100">කොටුව</span>
+                              {String(num).padStart(2, '0')}
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-white mb-2">
+                                <span className="font-semibold text-lg">👤 {data.name}</span>
+                              </div>
+                              <div className="text-gray-300 mb-2">
+                                <span className="font-medium">📱 {data.phone}</span>
+                              </div>
+                              {data.bookedAt && (
+                                <div className="text-gray-400 text-sm">
+                                  📅 {data.bookedAt}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <div className="bg-yellow-500/20 border-2 border-yellow-500 rounded-xl px-4 py-3">
+                                <p className="text-yellow-200 text-xs mb-1">මුදල</p>
+                                <p className="text-yellow-300 font-bold text-2xl">රු. 100</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-16">
+                      <div className="text-8xl mb-4">🔒</div>
+                      <p className="text-gray-400 text-xl">තවම කොටු වෙන්කර නැත</p>
+                      <p className="text-gray-500 mt-2">Users කොටු book කළ පසු මෙහි පෙන්වනු ඇත</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <style>{`
+                @keyframes fade-in {
+                  from { opacity: 0; transform: translateY(-20px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-fade-in {
+                  animation: fade-in 0.6s ease-out;
+                }
+                ::-webkit-scrollbar {
+                  width: 8px;
+                }
+                ::-webkit-scrollbar-track {
+                  background: rgba(75, 85, 99, 0.3);
+                  border-radius: 10px;
+                }
+                ::-webkit-scrollbar-thumb {
+                  background: rgba(16, 185, 129, 0.5);
+                  border-radius: 10px;
+                }
+                ::-webkit-scrollbar-thumb:hover {
+                  background: rgba(16, 185, 129, 0.7);
+                }
+              `}</style>
+            </div>
+          );
+        }
+
+        ReactDOM.render(
+          React.createElement(BoxBookingSystem),
+          document.getElementById('root')
+        );
+    </script>
+</body>
+</html>
